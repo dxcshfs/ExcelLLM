@@ -1,0 +1,279 @@
+/* ExcelLLM - Excel数据AI批处理工具 样式表 */
+
+/* 全局样式 */
+:root {
+    --primary-color: #3b82f6;
+    --primary-light: rgba(59, 130, 246, 0.1);
+    --success-color: #10b981;
+    --warning-color: #f59e0b;
+    --danger-color: #ef4444;
+    --info-color: #3b82f6;
+    --secondary-color: #6b7280;
+    --light-color: #f9fafb;
+    --dark-color: #1f2937;
+    --border-color: #e5e7eb;
+    --text-color: #1f2937;
+    --text-muted: #6b7280;
+}
+
+body {
+    font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+    color: var(--text-color);
+    background-color: #f8f9fa;
+}
+
+/* 页面容器 */
+.container {
+    max-width: 1280px;
+}
+
+/* 卡片样式 */
+.card {
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    margin-bottom: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.card-header {
+    background-color: #fff;
+    border-bottom: 1px solid var(--border-color);
+    padding: 1rem;
+    font-weight: 600;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+}
+
+.card-body {
+    padding: 1.25rem;
+}
+
+/* 按钮样式 */
+.btn {
+    border-radius: 6px;
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    transition: all 0.2s ease;
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.btn-primary:hover, .btn-primary:focus {
+    background-color: #2563eb;
+    border-color: #2563eb;
+}
+
+.btn-outline-primary {
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.btn-outline-primary:hover, .btn-outline-primary:focus {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.btn-success {
+    background-color: var(--success-color);
+    border-color: var(--success-color);
+}
+
+.btn-success:hover, .btn-success:focus {
+    background-color: #059669;
+    border-color: #059669;
+}
+
+.btn-warning {
+    background-color: var(--warning-color);
+    border-color: var(--warning-color);
+}
+
+.btn-warning:hover, .btn-warning:focus {
+    background-color: #d97706;
+    border-color: #d97706;
+}
+
+.btn-danger {
+    background-color: var(--danger-color);
+    border-color: var(--danger-color);
+}
+
+.btn-danger:hover, .btn-danger:focus {
+    background-color: #dc2626;
+    border-color: #dc2626;
+}
+
+.btn-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+
+/* 表单样式 */
+.form-control, .form-select {
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    padding: 0.5rem 0.75rem;
+    transition: border-color 0.2s ease;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.25);
+}
+
+.form-label {
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+}
+
+.form-text {
+    color: var(--text-muted);
+    font-size: 0.875rem;
+}
+
+/* 表格样式 */
+.table {
+    color: var(--text-color);
+}
+
+.table th {
+    font-weight: 600;
+    background-color: rgba(59, 130, 246, 0.05);
+}
+
+.table-bordered th, .table-bordered td {
+    border-color: #e5e7eb;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(59, 130, 246, 0.05);
+}
+
+/* 徽章样式 */
+.badge {
+    font-weight: 500;
+    padding: 0.35em 0.65em;
+    border-radius: 0.25rem;
+}
+
+/* 进度条样式 */
+.progress {
+    height: 0.5rem;
+    border-radius: 1rem;
+    background-color: #e5e7eb;
+}
+
+.progress-bar {
+    background-color: var(--primary-color);
+}
+
+/* 导航样式 */
+.navbar {
+    background-color: #fff;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.navbar-brand {
+    font-weight: 700;
+    color: var(--primary-color);
+}
+
+.navbar-light .navbar-nav .nav-link {
+    color: var(--text-color);
+    font-weight: 500;
+}
+
+.navbar-light .navbar-nav .nav-link.active {
+    color: var(--primary-color);
+}
+
+/* 页脚样式 */
+footer {
+    background-color: #fff;
+    color: var(--text-muted);
+    padding: 1.5rem 0;
+    margin-top: 2rem;
+    border-top: 1px solid var(--border-color);
+}
+
+/* 代码编辑器样式 */
+.CodeMirror {
+    height: 300px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-family: 'Consolas', 'Source Code Pro', monospace;
+    font-size: 14px;
+}
+
+.cm-field-start, .cm-field-end, .cm-field-content {
+    background-color: #e6f7ff;
+    color: #0066cc;
+    font-weight: bold;
+}
+
+/* 字段按钮样式 */
+.field-btn {
+    margin: 0.25rem;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    border-color: #d1d5db;
+    color: #4b5563;
+    background-color: #fff;
+    transition: all 0.2s ease;
+}
+
+.field-btn:hover, .field-btn:focus {
+    background-color: var(--primary-light);
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+/* 预览区域 */
+.preview-container {
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background-color: #fff;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+    .card-header {
+        flex-direction: column;
+        align-items: flex-start !important;
+    }
+    
+    .card-header .btn, .card-header .form-control {
+        margin-top: 0.5rem;
+        width: 100%;
+    }
+    
+    .table-responsive {
+        border: none;
+    }
+}
+
+
+/* 自定义动画 */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.fade-in {
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+/* SweetAlert2 自定义样式 */
+.swal2-popup {
+    border-radius: 12px;
+    font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+}
+
+.swal2-title {
+    font-weight: 600;
+}

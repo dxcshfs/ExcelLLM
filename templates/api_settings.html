@@ -1,0 +1,419 @@
+{% include 'components/header.html' %}
+
+<div class="row mb-4">
+    <div class="col-lg-8 col-md-10 mx-auto">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary bg-opacity-10 d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-gear me-2"></i>API设置
+                </h5>
+                <button id="add-config-btn" class="btn btn-sm btn-primary">
+                    <i class="fas fa-plus me-1"></i> 新增配置
+                </button>
+            </div>
+            <div class="card-body">
+                <div id="api-config-list" class="mb-4">
+                    <!-- API配置列表将在这里动态加载 -->
+                    <div class="text-center py-5 text-muted">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2">正在加载API配置...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- API配置表单模态框 -->
+<div class="modal fade" id="api-config-modal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="config-modal-title">添加API配置</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="api-config-form">
+                    <input type="hidden" id="config-id" name="id">
+                    
+                    <div class="mb-3">
+                        <label for="config-name" class="form-label">配置名称</label>
+                        <input type="text" class="form-control" id="config-name" name="name" required placeholder="例如：我的OpenAI配置">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="config-type" class="form-label">API类型</label>
+                        <select class="form-select" id="config-type" name="type" required>
+                            <option value="openai">OpenAI兼容API</option>
+                        </select>
+                        <div class="form-text">选择API类型，不同类型可能有不同的请求格式</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="config-url" class="form-label">API接入地址</label>
+                        <input type="url" class="form-control" id="config-url" name="url" required placeholder="例如：https://api.openai.com/v1">
+                        <div class="form-text">API服务器地址，不包含具体接口路径</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="config-api-key" class="form-label">API-KEY</label>
+                        <input type="password" class="form-control" id="config-api-key" name="api_key" required placeholder="输入您的API密钥">
+                        <div class="form-text">用于API认证的密钥，请妥善保管</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="config-model" class="form-label">模型名称</label>
+                        <input type="text" class="form-control" id="config-model" name="model_name" required placeholder="例如：gpt-4-vision-preview">
+                        <div class="form-text">请填写完整的模型名称，需要是支持多模态的模型才能处理图片</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="config-params" class="form-label">其他参数</label>
+                        <textarea class="form-control" id="config-params" name="other_params" rows="5" placeholder='{"temperature": 0.7, "max_tokens": 1000}'></textarea>
+                        <div class="form-text">以JSON格式填写其他参数，例如temperature、max_tokens等</div>
+                    </div>
+                    
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="config-stream" name="use_stream">
+                        <label class="form-check-label" for="config-stream">
+                            使用流式输出 (Stream)
+                        </label>
+                        <div class="form-text">某些API服务需要启用流式输出才能使用，详见相关API文档或错误提示。</div>
+                    </div>
+                    
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="config-default" name="is_default">
+                        <label class="form-check-label" for="config-default">
+                            设为默认配置
+                        </label>
+                        <div class="form-text">设为默认后，所有新任务将使用此配置</div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" id="save-config-btn">保存配置</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // 加载API配置列表
+        loadApiConfigs();
+        
+        // 新增配置按钮点击事件
+        $('#add-config-btn').on('click', function() {
+            resetConfigForm();
+            $('#config-modal-title').text('添加API配置');
+            $('#api-config-modal').modal('show');
+        });
+        
+        // 保存配置按钮点击事件
+        $('#save-config-btn').on('click', function() {
+            saveApiConfig();
+        });
+    });
+    
+    // 加载API配置列表
+    function loadApiConfigs() {
+        $.ajax({
+            url: '/api_configs',
+            type: 'GET',
+            success: function(configs) {
+                renderApiConfigs(configs);
+            },
+            error: function(xhr) {
+                $('#api-config-list').html(`
+                    <div class="alert alert-danger" role="alert">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        加载API配置失败，请刷新页面重试
+                    </div>
+                `);
+            }
+        });
+    }
+    
+    // 渲染API配置列表
+    function renderApiConfigs(configs) {
+        const container = $('#api-config-list');
+        container.empty();
+        
+        if (configs.length === 0) {
+            container.html(`
+                <div class="text-center py-5 text-muted">
+                    <i class="fas fa-cog fa-3x mb-3"></i>
+                    <p>暂无API配置，请点击"新增配置"按钮添加</p>
+                </div>
+            `);
+            return;
+        }
+        
+        configs.forEach(config => {
+            const card = $(`
+                <div class="card mb-3 ${config.is_default ? 'border-primary' : ''}">
+                    <div class="card-header d-flex justify-content-between align-items-center ${config.is_default ? 'bg-primary bg-opacity-10' : ''}">
+                        <h6 class="mb-0">
+                            ${config.name}
+                            ${config.is_default ? '<span class="badge bg-primary ms-2">默认</span>' : ''}
+                        </h6>
+                        <div>
+                            <button class="btn btn-sm btn-outline-primary edit-config-btn" data-config-id="${config.id}">
+                                <i class="fas fa-edit"></i> 编辑
+                            </button>
+                            <button class="btn btn-sm btn-outline-success copy-config-btn" data-config-id="${config.id}">
+                                <i class="fas fa-copy"></i> 复制
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger delete-config-btn" data-config-id="${config.id}" ${configs.length <= 1 ? 'disabled' : ''}>
+                                <i class="fas fa-trash"></i> 删除
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="mb-2">
+                                    <span class="fw-bold">API类型：</span>
+                                    ${config.type === 'openai' ? 'OpenAI兼容API' : config.type}
+                                </div>
+                                <div class="mb-2">
+                                    <span class="fw-bold">接入地址：</span>
+                                    <span class="text-break">${config.url}</span>
+                                </div>
+                                <div class="mb-2">
+                                    <span class="fw-bold">API-KEY：</span>
+                                    ••••••••${config.api_key ? config.api_key.substring(config.api_key.length - 4) : ''}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-2">
+                                    <span class="fw-bold">模型名称：</span>
+                                    ${config.model_name}
+                                </div>
+                                <div class="mb-2">
+                                    <span class="fw-bold">其他参数：</span>
+                                    <pre class="bg-light p-2 rounded small mb-0" style="max-height: 80px; overflow-y: auto;">${JSON.stringify(config.other_params, null, 2)}</pre>
+                                </div>
+                                <div>
+                                    <span class="fw-bold">流式输出：</span>
+                                    <span class="badge ${config.use_stream ? 'bg-success' : 'bg-secondary'}">${config.use_stream ? '已启用' : '未启用'}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `);
+            
+            // 绑定编辑按钮事件
+            card.find('.edit-config-btn').on('click', function() {
+                const configId = $(this).data('config-id');
+                editApiConfig(configs.find(c => c.id === configId));
+            });
+            
+            // 绑定复制按钮事件
+            card.find('.copy-config-btn').on('click', function() {
+                const configId = $(this).data('config-id');
+                copyApiConfig(configs.find(c => c.id === configId));
+            });
+            
+            // 绑定删除按钮事件
+            card.find('.delete-config-btn').on('click', function() {
+                const configId = $(this).data('config-id');
+                deleteApiConfig(configId);
+            });
+            
+            container.append(card);
+        });
+    }
+    
+    // 重置配置表单
+    function resetConfigForm() {
+        $('#api-config-form')[0].reset();
+        $('#config-id').val('');
+        $('#config-default').prop('checked', false);
+    }
+    
+    // 编辑API配置
+    function editApiConfig(config) {
+        resetConfigForm();
+        
+        $('#config-modal-title').text('编辑API配置');
+        $('#config-id').val(config.id);
+        $('#config-name').val(config.name);
+        $('#config-type').val(config.type);
+        $('#config-url').val(config.url);
+        $('#config-api-key').val(config.api_key);
+        $('#config-model').val(config.model_name);
+        $('#config-params').val(JSON.stringify(config.other_params, null, 2));
+        $('#config-stream').prop('checked', config.use_stream === 1);
+        $('#config-default').prop('checked', config.is_default === 1);
+        
+        $('#api-config-modal').modal('show');
+    }
+    
+    // 保存API配置
+    function saveApiConfig() {
+        // 验证表单
+        const form = $('#api-config-form')[0];
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+        
+        // 获取表单数据
+        const formData = {
+            id: $('#config-id').val() || null,
+            name: $('#config-name').val(),
+            type: $('#config-type').val(),
+            url: $('#config-url').val(),
+            api_key: $('#config-api-key').val(),
+            model_name: $('#config-model').val(),
+            use_stream: $('#config-stream').is(':checked') ? 1 : 0,
+            is_default: $('#config-default').is(':checked') ? 1 : 0
+        };
+        
+        // 处理其他参数
+        try {
+            const otherParams = $('#config-params').val().trim();
+            formData.other_params = otherParams ? JSON.parse(otherParams) : {};
+        } catch (e) {
+            Swal.fire({
+                title: 'JSON格式错误',
+                text: '其他参数必须是有效的JSON格式',
+                icon: 'error'
+            });
+            return;
+        }
+        
+        // 显示加载中
+        $('#save-config-btn').prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2" role="status"></span>保存中...');
+        
+        // 发送保存请求
+        $.ajax({
+            url: '/save_api_config',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(formData),
+            success: function(response) {
+                if (response.success) {
+                    $('#api-config-modal').modal('hide');
+                    
+                    Swal.fire({
+                        title: '保存成功',
+                        text: 'API配置已保存',
+                        icon: 'success',
+                        toast: true,
+                        position: 'top-end',
+                        showConfirmButton: false,
+                        timer: 3000
+                    });
+                    
+                    // 重新加载配置列表
+                    loadApiConfigs();
+                } else {
+                    Swal.fire({
+                        title: '保存失败',
+                        text: response.error || '保存API配置失败',
+                        icon: 'error'
+                    });
+                }
+            },
+            error: function(xhr) {
+                Swal.fire({
+                    title: '保存失败',
+                    text: xhr.responseJSON?.error || '保存API配置失败',
+                    icon: 'error'
+                });
+            },
+            complete: function() {
+                $('#save-config-btn').prop('disabled', false).html('保存配置');
+            }
+        });
+    }
+    
+    // 删除API配置
+    function deleteApiConfig(configId) {
+        Swal.fire({
+            title: '确认删除',
+            text: '确定要删除此API配置吗？删除后无法恢复。',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: '删除',
+            cancelButtonText: '取消'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // 发送删除请求
+                $.ajax({
+                    url: `/delete_api_config/${configId}`,
+                    type: 'POST',
+                    success: function(response) {
+                        if (response.success) {
+                            Swal.fire({
+                                title: '删除成功',
+                                text: 'API配置已删除',
+                                icon: 'success',
+                                toast: true,
+                                position: 'top-end',
+                                showConfirmButton: false,
+                                timer: 3000
+                            });
+                            
+                            // 重新加载配置列表
+                            loadApiConfigs();
+                        } else {
+                            Swal.fire({
+                                title: '删除失败',
+                                text: response.error || '删除API配置失败',
+                                icon: 'error'
+                            });
+                        }
+                    },
+                    error: function(xhr) {
+                        Swal.fire({
+                            title: '删除失败',
+                            text: xhr.responseJSON?.error || '删除API配置失败',
+                            icon: 'error'
+                        });
+                    }
+                });
+            }
+        });
+    }
+    // 复制API配置
+    function copyApiConfig(config) {
+        // 创建一个新的配置对象，去掉id，确保创建为新配置
+        const newConfig = {...config};
+        delete newConfig.id;
+        
+        // 修改名称，添加"复制"标识
+        newConfig.name = `${newConfig.name} - 复制`;
+        
+        // 默认不设为默认配置
+        newConfig.is_default = 0;
+        
+        // 将配置填充到表单中
+        $('#config-modal-title').text('添加API配置');
+        $('#config-id').val('');
+        $('#config-name').val(newConfig.name);
+        $('#config-type').val(newConfig.type);
+        $('#config-url').val(newConfig.url);
+        $('#config-api-key').val(newConfig.api_key);
+        $('#config-model').val(newConfig.model_name);
+        $('#config-params').val(JSON.stringify(newConfig.other_params, null, 2));
+        $('#config-stream').prop('checked', newConfig.use_stream === 1);
+        $('#config-default').prop('checked', false);
+        
+        // 显示模态框
+        $('#api-config-modal').modal('show');
+        
+        // 显示成功提示
+        showNotification('已创建配置副本，请确认后保存', 'info');
+    }
+</script>
+{% endblock %}
+
+{% include 'components/footer.html' %}

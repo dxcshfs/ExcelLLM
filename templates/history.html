@@ -1,0 +1,562 @@
+{% include 'components/header.html' %}
+
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary bg-opacity-10 d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-history me-2"></i>历史任务列表
+                </h5>
+                <div>
+                    <input type="text" id="search-input" class="form-control form-control-sm d-inline-block" style="width: 200px;" placeholder="搜索...">
+                    <button id="search-btn" class="btn btn-sm btn-outline-primary ms-2">
+                        <i class="fas fa-search"></i> 搜索
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table id="history-table" class="table table-bordered table-hover">
+                        <thead>
+                            <tr>
+                                <th width="15%">创建时间</th>
+                                <th width="10%">任务名称</th>
+                                <th width="10%">处理状态</th>
+                                <th width="10%">处理条数</th>
+                                <th width="15%">成功/错误</th>
+                                <th width="10%">进度</th>
+                                <th width="30%">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- 任务数据将在这里动态加载 -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="d-flex justify-content-between align-items-center mt-3">
+                    <div class="text-muted small">
+                        共 <span id="total-count">0</span> 条记录
+                    </div>
+                    <nav>
+                        <ul class="pagination pagination-sm" id="pagination">
+                            <!-- 分页将在这里动态生成 -->
+                        </ul>
+                    </nav>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+    let currentPage = 1;
+    const pageSize = 10;
+    let totalTasks = 0;
+    let totalPages = 0;
+    
+    $(document).ready(function() {
+        // 初始加载任务列表
+        loadHistoryTasks(currentPage);
+        
+        // 搜索按钮点击事件
+        $('#search-btn').on('click', function() {
+            currentPage = 1;
+            loadHistoryTasks(currentPage);
+        });
+        
+        // 搜索框回车事件
+        $('#search-input').on('keypress', function(e) {
+            if (e.which === 13) {
+                currentPage = 1;
+                loadHistoryTasks(currentPage);
+            }
+        });
+    });
+    
+    // 加载历史任务
+    function loadHistoryTasks(page) {
+        // 显示加载状态
+        $('#history-table tbody').html(`
+            <tr>
+                <td colspan="7" class="text-center py-4">
+                    <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                    正在加载...
+                </td>
+            </tr>
+        `);
+        
+        const searchQuery = $('#search-input').val().trim();
+        
+        // 请求历史任务
+        $.ajax({
+            url: '/history_tasks',
+            type: 'GET',
+            data: {
+                page: page,
+                per_page: pageSize,
+                query: searchQuery
+            },
+            success: function(response) {
+                renderHistoryTasks(response.tasks);
+                renderPagination(response.page, response.total, response.per_page);
+                $('#total-count').text(response.total);
+                
+                totalTasks = response.total;
+                totalPages = Math.ceil(totalTasks / pageSize);
+            },
+            error: function() {
+                $('#history-table tbody').html(`
+                    <tr>
+                        <td colspan="7" class="text-center text-danger py-4">
+                            <i class="fas fa-exclamation-circle me-2"></i>
+                            加载任务列表失败，请刷新页面重试
+                        </td>
+                    </tr>
+                `);
+            }
+        });
+    }
+    
+    // 渲染任务列表
+    function renderHistoryTasks(tasks) {
+        const tbody = $('#history-table tbody');
+        tbody.empty();
+        
+        if (tasks.length === 0) {
+            tbody.html(`
+                <tr>
+                    <td colspan="7" class="text-center text-muted py-5">
+                        <i class="fas fa-folder-open fa-3x mb-3"></i>
+                        <p>暂无历史任务</p>
+                    </td>
+                </tr>
+            `);
+            return;
+        }
+        
+        tasks.forEach(task => {
+            // 确定状态样式
+            let statusBadge = '';
+            switch (task.status) {
+                case 'pending':
+                    statusBadge = '<span class="badge bg-secondary">待处理</span>';
+                    break;
+                case 'running':
+                    statusBadge = '<span class="badge bg-primary">处理中</span>';
+                    break;
+                case 'completed':
+                    statusBadge = '<span class="badge bg-success">已完成</span>';
+                    break;
+                case 'stopped':
+                    statusBadge = '<span class="badge bg-warning text-dark">已停止</span>';
+                    break;
+                case 'error':
+                    statusBadge = '<span class="badge bg-danger">出错</span>';
+                    break;
+                default:
+                    statusBadge = '<span class="badge bg-secondary">未知</span>';
+            }
+            
+            // 渲染进度条
+            const progress = task.progress || 0;
+            let progressBar = '';
+            
+            if (task.status === 'completed') {
+                progressBar = `<div class="progress" style="height: 8px;">
+                    <div class="progress-bar bg-success" role="progressbar" style="width: 100%"></div>
+                </div>
+                <div class="text-center small">100%</div>`;
+            } else if (task.status === 'running') {
+                progressBar = `<div class="progress" style="height: 8px;">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: ${progress}%"></div>
+                </div>
+                <div class="text-center small">${progress}%</div>`;
+            } else if (task.status === 'stopped') {
+                progressBar = `<div class="progress" style="height: 8px;">
+                    <div class="progress-bar bg-warning" role="progressbar" style="width: ${progress}%"></div>
+                </div>
+                <div class="text-center small">${progress}%</div>`;
+            } else if (task.status === 'error') {
+                progressBar = `<div class="progress" style="height: 8px;">
+                    <div class="progress-bar bg-danger" role="progressbar" style="width: ${progress}%"></div>
+                </div>
+                <div class="text-center small">${progress}%</div>`;
+            } else {
+                progressBar = `<div class="progress" style="height: 8px;">
+                    <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+                </div>
+                <div class="text-center small">0%</div>`;
+            }
+            
+            // 准备操作按钮
+            const actionButtons = [];
+            
+            // 停止按钮 - 只有运行中的任务才能停止
+            if (task.status === 'running') {
+                actionButtons.push(`
+                    <button class="btn btn-sm btn-warning stop-task-btn" data-task-id="${task.id}">
+                        <i class="fas fa-stop"></i> 停止
+                    </button>
+                `);
+            }
+            
+            // 下载结果按钮 - 只有已完成的任务才能下载
+            if (task.status === 'completed' && task.result_path) {
+                actionButtons.push(`
+                    <a href="/download_result/${task.id}" class="btn btn-sm btn-success">
+                        <i class="fas fa-download"></i> 下载结果
+                    </a>
+                `);
+            }
+            
+            // 删除按钮 - 所有任务都可以删除
+            actionButtons.push(`
+                <button class="btn btn-sm btn-danger delete-task-btn" data-task-id="${task.id}">
+                    <i class="fas fa-trash"></i> 删除
+                </button>
+            `);
+            
+            // 任务详情按钮
+            actionButtons.push(`
+                <button class="btn btn-sm btn-info task-detail-btn" data-task-id="${task.id}">
+                    <i class="fas fa-info-circle"></i> 详情
+                </button>
+            `);
+            
+            const row = $(`
+                <tr>
+                    <td>${task.created_at}</td>
+                    <td>${task.name}</td>
+                    <td>${statusBadge}</td>
+                    <td>${task.processed_count} / ${task.total_count}</td>
+                    <td>${task.success_count} / ${task.error_count}</td>
+                    <td>${progressBar}</td>
+                    <td>${actionButtons.join(' ')}</td>
+                </tr>
+            `);
+            
+            tbody.append(row);
+        });
+        
+        // 绑定按钮事件
+        $('.stop-task-btn').on('click', function() {
+            const taskId = $(this).data('task-id');
+            stopTask(taskId);
+        });
+        
+        $('.delete-task-btn').on('click', function() {
+            const taskId = $(this).data('task-id');
+            deleteTask(taskId);
+        });
+        
+        $('.task-detail-btn').on('click', function() {
+            const taskId = $(this).data('task-id');
+            showTaskDetail(taskId);
+        });
+    }
+    
+    // 渲染分页
+    function renderPagination(currentPage, totalItems, perPage) {
+        const totalPages = Math.ceil(totalItems / perPage);
+        
+        if (totalPages <= 1) {
+            $('#pagination').empty();
+            return;
+        }
+        
+        const pagination = $('#pagination');
+        pagination.empty();
+        
+        // 上一页按钮
+        pagination.append(`
+            <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+                <a class="page-link" href="javascript:void(0)" data-page="${currentPage - 1}">上一页</a>
+            </li>
+        `);
+        
+        // 页码按钮
+        let startPage = Math.max(1, currentPage - 2);
+        let endPage = Math.min(totalPages, startPage + 4);
+        
+        if (endPage - startPage < 4) {
+            startPage = Math.max(1, endPage - 4);
+        }
+        
+        for (let i = startPage; i <= endPage; i++) {
+            pagination.append(`
+                <li class="page-item ${i === currentPage ? 'active' : ''}">
+                    <a class="page-link" href="javascript:void(0)" data-page="${i}">${i}</a>
+                </li>
+            `);
+        }
+        
+        // 下一页按钮
+        pagination.append(`
+            <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+                <a class="page-link" href="javascript:void(0)" data-page="${currentPage + 1}">下一页</a>
+            </li>
+        `);
+        
+        // 绑定页码点击事件
+        $('.page-link').on('click', function() {
+            const page = $(this).data('page');
+            if (page && page !== currentPage && page > 0 && page <= totalPages) {
+                loadHistoryTasks(page);
+            }
+        });
+    }
+    
+    // 停止任务
+    function stopTask(taskId) {
+        Swal.fire({
+            title: '确认停止任务',
+            text: '确定要停止该任务吗？停止后无法继续执行。',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: '停止',
+            cancelButtonText: '取消'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // 发送停止请求
+                $.ajax({
+                    url: `/stop_task/${taskId}`,
+                    type: 'POST',
+                    success: function(response) {
+                        if (response.success) {
+                            Swal.fire({
+                                title: '任务已停止',
+                                icon: 'success',
+                                toast: true,
+                                position: 'top-end',
+                                showConfirmButton: false,
+                                timer: 3000
+                            });
+                            
+                            // 重新加载任务列表
+                            loadHistoryTasks(currentPage);
+                        } else {
+                            Swal.fire({
+                                title: response.error || '停止任务失败',
+                                icon: 'error',
+                                toast: true,
+                                position: 'top-end',
+                                showConfirmButton: false,
+                                timer: 3000
+                            });
+                        }
+                    },
+                    error: function(xhr) {
+                        Swal.fire({
+                            title: xhr.responseJSON?.error || '停止任务失败',
+                            icon: 'error',
+                            toast: true,
+                            position: 'top-end',
+                            showConfirmButton: false,
+                            timer: 3000
+                        });
+                    }
+                });
+            }
+        });
+    }
+    
+    // 删除任务
+    function deleteTask(taskId) {
+        Swal.fire({
+            title: '确认删除任务',
+            text: '确定要删除该任务吗？删除后无法恢复。',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: '删除',
+            cancelButtonText: '取消'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // 发送删除请求
+                $.ajax({
+                    url: `/delete_task/${taskId}`,
+                    type: 'POST',
+                    success: function(response) {
+                        if (response.success) {
+                            Swal.fire({
+                                title: '任务已删除',
+                                icon: 'success',
+                                toast: true,
+                                position: 'top-end',
+                                showConfirmButton: false,
+                                timer: 3000
+                            });
+                            
+                            // 重新加载任务列表
+                            loadHistoryTasks(currentPage);
+                        } else {
+                            Swal.fire({
+                                title: response.error || '删除任务失败',
+                                icon: 'error',
+                                toast: true,
+                                position: 'top-end',
+                                showConfirmButton: false,
+                                timer: 3000
+                            });
+                        }
+                    },
+                    error: function(xhr) {
+                        Swal.fire({
+                            title: xhr.responseJSON?.error || '删除任务失败',
+                            icon: 'error',
+                            toast: true,
+                            position: 'top-end',
+                            showConfirmButton: false,
+                            timer: 3000
+                        });
+                    }
+                });
+            }
+        });
+    }
+    
+    // 显示任务详情
+    function showTaskDetail(taskId) {
+        // 获取任务详情
+        $.ajax({
+            url: `/task_status/${taskId}`,
+            type: 'GET',
+            success: function(task) {
+                // 格式化创建和完成时间
+                const createdAt = task.created_at || '-';
+                const startedAt = task.started_at || '-';
+                const completedAt = task.completed_at || '-';
+                
+                // 状态文本
+                let statusText = '';
+                switch (task.status) {
+                    case 'pending': statusText = '待处理'; break;
+                    case 'running': statusText = '处理中'; break;
+                    case 'completed': statusText = '已完成'; break;
+                    case 'stopped': statusText = '已停止'; break;
+                    case 'error': statusText = '出错'; break;
+                    default: statusText = '未知';
+                }
+                
+                // 构建详情HTML
+                let detailHtml = `
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered">
+                            <tr>
+                                <th width="30%">任务ID</th>
+                                <td>${task.id}</td>
+                            </tr>
+                            <tr>
+                                <th>任务名称</th>
+                                <td>${task.name}</td>
+                            </tr>
+                            <tr>
+                                <th>处理状态</th>
+                                <td>${statusText}</td>
+                            </tr>
+                            <tr>
+                                <th>总条数</th>
+                                <td>${task.total_count}</td>
+                            </tr>
+                            <tr>
+                                <th>已处理</th>
+                                <td>${task.processed_count}</td>
+                            </tr>
+                            <tr>
+                                <th>成功/错误</th>
+                                <td>${task.success_count} / ${task.error_count}</td>
+                            </tr>
+                            <tr>
+                                <th>并发数</th>
+                                <td>${task.concurrency}</td>
+                            </tr>
+                            <tr>
+                                <th>创建时间</th>
+                                <td>${createdAt}</td>
+                            </tr>
+                            <tr>
+                                <th>开始时间</th>
+                                <td>${startedAt}</td>
+                            </tr>
+                            <tr>
+                                <th>完成时间</th>
+                                <td>${completedAt}</td>
+                            </tr>
+                            <tr>
+                                <th>提示词模板</th>
+                                <td>
+                                    <pre class="bg-light p-2 rounded small" style="max-height: 150px; overflow-y: auto;">${task.prompt_template}</pre>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                `;
+                
+                // 添加操作按钮
+                let actionButtons = '';
+                
+                // 下载结果按钮 - 只有已完成的任务才能下载
+                if (task.status === 'completed' && task.result_path) {
+                    actionButtons += `
+                        <a href="/download_result/${task.id}" class="btn btn-success">
+                            <i class="fas fa-download"></i> 下载结果
+                        </a>
+                    `;
+                }
+                
+                // 停止按钮 - 只有运行中的任务才能停止
+                if (task.status === 'running') {
+                    actionButtons += `
+                        <button class="btn btn-warning stop-detail-btn" data-task-id="${task.id}">
+                            <i class="fas fa-stop"></i> 停止任务
+                        </button>
+                    `;
+                }
+                
+                // 删除按钮 - 所有任务都可以删除
+                actionButtons += `
+                    <button class="btn btn-danger delete-detail-btn" data-task-id="${task.id}">
+                        <i class="fas fa-trash"></i> 删除任务
+                    </button>
+                `;
+                
+                // 显示弹窗
+                Swal.fire({
+                    title: '任务详情',
+                    html: detailHtml,
+                    width: '80%',
+                    footer: actionButtons,
+                    showConfirmButton: false,
+                    showCancelButton: true,
+                    cancelButtonText: '关闭',
+                    cancelButtonColor: '#6c757d',
+                });
+                
+                // 绑定按钮事件
+                $('.stop-detail-btn').on('click', function() {
+                    Swal.close();
+                    stopTask($(this).data('task-id'));
+                });
+                
+                $('.delete-detail-btn').on('click', function() {
+                    Swal.close();
+                    deleteTask($(this).data('task-id'));
+                });
+            },
+            error: function() {
+                Swal.fire({
+                    title: '获取任务详情失败',
+                    icon: 'error',
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 3000
+                });
+            }
+        });
+    }
+</script>
+{% endblock %}
+
+{% include 'components/footer.html' %}

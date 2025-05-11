@@ -1,0 +1,52 @@
+# 忽略上传的文件
+uploads/
+*.xlsx
+*.xls
+*.csv
+*.xlsm
+
+# 忽略处理结果
+results/
+
+# 忽略日志文件
+*.log
+logs/
+
+# 忽略数据库文件
+*.db
+*.sqlite
+*.sqlite3
+
+# Python虚拟环境
+venv/
+env/
+.env/
+.venv/
+
+# Python编译文件
+__pycache__/
+*.py[cod]
+*$py.class
+
+# 缓存文件
+.cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE相关文件
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# 环境配置文件
+.env
+.flaskenv
+instance/
+
+# 其他不需要提交的文件
+*.bak
+*.tmp
+*.temp
