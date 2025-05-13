@@ -109,9 +109,9 @@
                 </div>
                 <div class="card-body">
                     <div class="form-text mb-2">
-                        点击左侧字段按钮将在光标位置插入字段标记。格式为: <code>{{字段名}}</code>
+                        点击左侧字段按钮将在光标位置插入字段标记。格式为: <code>{{ '{{' }}字段名{{ '}}' }}</code>
                     </div>
-                    <textarea id="prompt-editor" class="form-control" rows="10" placeholder="请在这里编写提示词模板...&#10;&#10;例如: 请根据以下信息生成摘要:&#10;标题: {{标题}}&#10;内容: {{内容}}"></textarea>
+                    <textarea id="prompt-editor" class="form-control" rows="12" style="min-height: 300px; font-family: Consolas, monospace;" placeholder="请在这里编写提示词模板...&#10;&#10;例如: 请根据以下信息生成摘要:&#10;标题: {{ '{{' }}标题{{ '}}' }}&#10;内容: {{ '{{' }}内容{{ '}}' }}"></textarea>
                 </div>
             </div>
             
@@ -184,6 +184,7 @@
 
 {% block extra_js %}
 <script>
+{%- raw -%}
     // 当前上传的Excel schema ID
     let currentSchemaId = null;
     // 当前的任务ID
@@ -197,50 +198,19 @@
     
     // 初始化提示词编辑器
     $(document).ready(function() {
-        // 初始化CodeMirror编辑器
-        promptEditor = CodeMirror.fromTextArea(document.getElementById('prompt-editor'), {
-            mode: 'text/plain',
-            lineNumbers: false,
-            theme: 'eclipse',
-            lineWrapping: true,
-            placeholder: '请在这里编写提示词模板...\n\n例如: 请根据以下信息生成摘要:\n标题: {{标题}}\n内容: {{内容}}'
-        });
-        
-        // 定义字段标记的高亮规则
-        const fieldRegex = /\{\{[^{}]+\}\}/g;
-        const fieldOverlay = {
-            token: function(stream) {
-                stream.match(/\{\{[^{}]+\}\}/g, false);
-                if (stream.match(/\{\{/)) {
-                    return 'field-start';
-                } else if (stream.match(/\}\}/)) {
-                    return 'field-end';
-                } else {
-                    stream.match(/[^{}]+/);
-                    return 'field-content';
-                }
-            }
-        };
-        
-        CodeMirror.defineMode('fieldHighlight', function(config) {
-            return CodeMirror.overlayMode(
-                CodeMirror.getMode(config, 'text/plain'),
-                fieldOverlay
-            );
-        });
-        
-        promptEditor.setOption('mode', 'fieldHighlight');
+        // 使用普通textarea，不使用CodeMirror
+        let promptEditor = document.getElementById('prompt-editor');
         
         // 添加自定义样式
         $("<style>")
             .prop("type", "text/css")
-            .html(`
-                .cm-field-start, .cm-field-end, .cm-field-content {
-                    background-color: #e6f7ff;
-                    color: #0066cc;
-                    font-weight: bold;
-                }
-            `)
+            .html(
+                '.cm-field-start, .cm-field-end, .cm-field-content {' +
+                    'background-color: #e6f7ff;' +
+                    'color: #0066cc;' +
+                    'font-weight: bold;' +
+                '}'
+            )
             .appendTo("head");
         
         // 加载模板列表
@@ -256,7 +226,7 @@
         
         // 保存模板按钮
         $('#save-template-btn').on('click', function() {
-            const content = promptEditor.getValue();
+            const content = document.getElementById('prompt-editor').value;
             if (!content.trim()) {
                 showAlert('请先编写提示词模板', 'warning');
                 return;
@@ -404,7 +374,7 @@
                 return;
             }
             
-            const promptTemplate = promptEditor.getValue();
+            const promptTemplate = document.getElementById('prompt-editor').value;
             if (!promptTemplate.trim()) {
                 showAlert('请填写提示词模板', 'warning');
                 return;
@@ -457,17 +427,32 @@
                 return;
             }
             
-            const button = $(`
-                <button type="button" class="btn btn-outline-secondary btn-sm field-btn mb-2">
-                    ${field}
-                </button>
-            `);
+            const button = $(
+                '<button type="button" class="btn btn-outline-secondary btn-sm field-btn mb-2">' +
+                field +
+                '</button>'
+            );
             
             button.on('click', function() {
-                // 在提示词编辑器的光标位置插入字段标记
-                const cursor = promptEditor.getCursor();
-                promptEditor.replaceRange(`{{ '{{' }}${field}}}`, cursor);
-                promptEditor.focus();
+                // 获取textarea元素
+                const textarea = document.getElementById('prompt-editor');
+                
+                // 在光标位置或所选位置插入字段标记
+                const start = textarea.selectionStart;
+                const end = textarea.selectionEnd;
+                const value = textarea.value;
+                const beforeText = value.substring(0, start);
+                const afterText = value.substring(end);
+                
+                // 插入字段标记 - 不使用ES6模板字符串以避免与Jinja2语法冲突
+                textarea.value = beforeText + '{{' + field + '}}' + afterText;
+                
+                // 将光标位置设置到插入内容之后
+                const newPosition = start + field.length + 4; // 4是{{}}的长度
+                textarea.setSelectionRange(newPosition, newPosition);
+                
+                // 聚焦输入框
+                textarea.focus();
             });
             
             container.append(button);
@@ -508,18 +493,18 @@
     function addImageFieldRow(index) {
         const container = $('#image-fields-container');
         
-        const row = $(`
-            <div class="image-field-row d-flex align-items-center mb-2">
-                <select class="form-select form-select-sm image-field-select me-2">
-                    <option value="">-- 选择图片字段 --</option>
-                    ${excelFields.filter(field => field !== null && field !== undefined && field !== '')
-                              .map(field => `<option value="${field}">${field}</option>`).join('')}
-                </select>
-                <button type="button" class="btn btn-outline-danger btn-sm remove-image-field-btn">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-        `);
+        const row = $(
+            '<div class="image-field-row d-flex align-items-center mb-2">' +
+                '<select class="form-select form-select-sm image-field-select me-2">' +
+                    '<option value="">-- 选择图片字段 --</option>' +
+                    excelFields.filter(field => field !== null && field !== undefined && field !== '')
+                              .map(field => '<option value="' + field + '">' + field + '</option>').join('') +
+                '</select>' +
+                '<button type="button" class="btn btn-outline-danger btn-sm remove-image-field-btn">' +
+                    '<i class="fas fa-times"></i>' +
+                '</button>' +
+            '</div>'
+        );
         
         // 移除按钮点击事件
         row.find('.remove-image-field-btn').on('click', function() {
@@ -563,7 +548,7 @@
         
         // 添加表头
         validFields.forEach(field => {
-            thead.append(`<th>${field}</th>`);
+            thead.append('<th>' + field + '</th>');
         });
         
         // 添加预览数据
@@ -909,7 +894,7 @@
             success: function(templates) {
                 const template = templates.find(t => t.id == templateId);
                 if (template) {
-                    promptEditor.setValue(template.content);
+                    document.getElementById('prompt-editor').value = template.content;
                 }
             }
         });
@@ -952,7 +937,7 @@
                     
                     // 清空编辑器（如果当前正在编辑被删除的模板）
                     if ($('#template-select').val() == templateId) {
-                        promptEditor.setValue('');
+                        document.getElementById('prompt-editor').value = '';
                     }
                     
                     // 重置选择框为默认选项
@@ -982,6 +967,7 @@
             timerProgressBar: true
         });
     }
+{%- endraw -%}
 </script>
 
 <style>
@@ -993,11 +979,21 @@
         max-width: 100%;
     }
     
-    /* CodeMirror 自定义样式 */
-    .CodeMirror {
+    /* 提示词编辑器样式 */
+    #prompt-editor {
         border: 1px solid #ddd;
         border-radius: 4px;
-        height: 300px;
+        padding: 10px;
+        font-size: 14px;
+        line-height: 1.5;
+        resize: vertical;
+        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    }
+    
+    #prompt-editor:focus {
+        border-color: #80bdff;
+        outline: 0;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
     }
     
     /* 结果预览区域最大高度 */
